@@ -2,6 +2,7 @@
 Local Host: 127.0.0.1
 """
 
+import chardet
 import socket
 import threading
 import tkinter as tk
@@ -61,6 +62,7 @@ class ClientGUI:
             self.log(f"Error connecting to server: {e}")
             self.client_socket = None
 
+    # new code
     def listen_for_notifications(self):
         """Listen for server notifications."""
         while True:
@@ -68,10 +70,28 @@ class ClientGUI:
                 data = self.client_socket.recv(4096)
                 if not data:
                     break
-                self.log(data.decode())
+                try:
+                    message = data.decode('utf-8')  # Attempt to decode as UTF-8
+                    self.log(message)
+                except UnicodeDecodeError:
+                    self.log("Received non-UTF-8 data from the server.")
             except Exception as e:
                 self.log(f"Error: {e}")
                 break
+
+
+    # error: maybe it fails to decode server messages because of error handling
+    # def listen_for_notifications(self):
+    #     """Listen for server notifications."""
+    #     while True:
+    #         try:
+    #             data = self.client_socket.recv(4096)
+    #             if not data:
+    #                 break
+    #             self.log(data.decode())
+    #         except Exception as e:
+    #             self.log(f"Error: {e}")
+    #             break
 
     def enable_buttons(self):
         """Enable buttons after successful connection."""
@@ -80,22 +100,44 @@ class ClientGUI:
         self.download_button.config(state=tk.NORMAL)
         self.delete_button.config(state=tk.NORMAL)
 
+    # new code
     def upload_file(self):
         """Upload a file to the server."""
-        file_path = filedialog.askopenfilename()
+        file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
         if not file_path:
             return
 
         filename = os.path.basename(file_path)
         try:
-            with open(file_path, 'rb') as f:
-                content = f.read()
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()  # Read the file as text
 
-            command = {"type": "upload", "filename": filename, "content": content}
+            command = {"type": "upload", "filename": filename, "content": content.encode('utf-8')}
             self.client_socket.sendall(pickle.dumps(command))
             self.log(f"Uploaded file: {filename}")
+        except UnicodeDecodeError as e:
+            self.log(f"Error: Could not read the file. Ensure it is UTF-8 encoded: {e}")
         except Exception as e:
             self.log(f"Error uploading file: {e}")
+
+
+    # error: perhaps it screws up encoding
+    # def upload_file(self):
+    #     """Upload a file to the server."""
+    #     file_path = filedialog.askopenfilename()
+    #     if not file_path:
+    #         return
+
+    #     filename = os.path.basename(file_path)
+    #     try:
+    #         with open(file_path, 'rb') as f:
+    #             content = f.read()
+
+    #         command = {"type": "upload", "filename": filename, "content": content}
+    #         self.client_socket.sendall(pickle.dumps(command))
+    #         self.log(f"Uploaded file: {filename}")
+    #     except Exception as e:
+    #         self.log(f"Error uploading file: {e}")
 
     # new code
 
@@ -144,6 +186,8 @@ class ClientGUI:
         self.client_socket.sendall(pickle.dumps(command))
         self.log(f"Requested to delete file: {filename}")
 
+
+    # new code
     def download_file(self):
         """Download a file from the server."""
         filename = tk.simpledialog.askstring("Input", "Enter the filename to download:")
@@ -156,13 +200,37 @@ class ClientGUI:
         data = self.client_socket.recv(4096)
         response = pickle.loads(data)
         if response["status"] == "SUCCESS":
-            save_path = filedialog.asksaveasfilename()
+            save_path = filedialog.asksaveasfilename(filetypes=[("Text files", "*.txt")])
             if save_path:
-                with open(save_path, 'wb') as f:
-                    f.write(response["content"])
-                self.log(f"File downloaded: {filename}")
+                try:
+                    with open(save_path, 'w', encoding='utf-8') as f:
+                        f.write(response["content"].decode('utf-8'))  # Save the file as UTF-8
+                    self.log(f"File downloaded: {filename}")
+                except UnicodeDecodeError as e:
+                    self.log(f"Error: Could not save the file. Invalid encoding: {e}")
         else:
             self.log("Error: File not found.")
+
+    # error: maybe when a file is downloaded, it's not decoded properly
+    # def download_file(self):
+    #     """Download a file from the server."""
+    #     filename = tk.simpledialog.askstring("Input", "Enter the filename to download:")
+    #     owner = tk.simpledialog.askstring("Input", "Enter the file owner's username:")
+    #     if not filename or not owner:
+    #         return
+
+    #     command = {"type": "download", "filename": filename, "owner": owner}
+    #     self.client_socket.sendall(pickle.dumps(command))
+    #     data = self.client_socket.recv(4096)
+    #     response = pickle.loads(data)
+    #     if response["status"] == "SUCCESS":
+    #         save_path = filedialog.asksaveasfilename()
+    #         if save_path:
+    #             with open(save_path, 'wb') as f:
+    #                 f.write(response["content"])
+    #             self.log(f"File downloaded: {filename}")
+    #     else:
+    #         self.log("Error: File not found.")
 
     def run(self):
         """Run the client GUI."""
