@@ -1,3 +1,7 @@
+"""
+Local Host: 127.0.0.1
+"""
+
 import socket
 import threading
 import tkinter as tk
@@ -93,15 +97,42 @@ class ClientGUI:
         except Exception as e:
             self.log(f"Error uploading file: {e}")
 
+    # new code
+
     def list_files(self):
-        """Request the list of files from the server."""
-        command = {"type": "list"}
-        self.client_socket.sendall(pickle.dumps(command))
-        data = self.client_socket.recv(4096)
-        file_list = pickle.loads(data)
-        self.log("Files on server:")
-        for file in file_list:
-            self.log(f"{file['filename']} (Owner: {file['owner']})")
+        """Request the list of files from the server in a separate thread."""
+        threading.Thread(target=self._list_files_thread, daemon=True).start()
+
+    def _list_files_thread(self):
+        """Threaded function to request and display the list of files."""
+        try:
+            command = {"type": "list"}
+            self.client_socket.sendall(pickle.dumps(command))  # Send the request
+            data = self.client_socket.recv(4096)  # Receive the response
+            file_list = pickle.loads(data)  # Deserialize the response
+            self.log("Files on server:")
+            for file in file_list:
+                self.log(f"{file['filename']} (Owner: {file['owner']})")
+        except Exception as e:
+            self.log(f"Error retrieving file list: {e}")
+
+
+
+
+    # previous code caused freezing
+    # reason: The freezing issue likely stems from the client GUI's "list files" functionality not being handled in a separate thread. 
+    # ... When a client sends the "list files" request to the server, it waits for the response, 
+    # ... but this operation blocks the GUI event loop, causing the window to freeze.
+    
+    # def list_files(self):
+    #     """Request the list of files from the server."""
+    #     command = {"type": "list"}
+    #     self.client_socket.sendall(pickle.dumps(command))
+    #     data = self.client_socket.recv(4096)
+    #     file_list = pickle.loads(data)
+    #     self.log("Files on server:")
+    #     for file in file_list:
+    #         self.log(f"{file['filename']} (Owner: {file['owner']})")
 
     def delete_file(self):
         """Delete a file on the server."""
