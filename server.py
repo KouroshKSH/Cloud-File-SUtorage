@@ -11,7 +11,7 @@ class ServerGUI:
         self.root.title("Server")
         
         # for responsiveness
-        self.root.geometry("500x700")  
+        self.root.geometry("700x500")  
 
         # Log box with scrollbars
         self.log_frame = tk.Frame(self.root)
