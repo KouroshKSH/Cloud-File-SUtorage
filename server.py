@@ -73,11 +73,21 @@ class ServerGUI:
         self.server_socket.listen(5)
         self.log(f"2]-> Server started on port {self.port}\n")
 
-        # Hide the hint label
-        self.hint_label.pack_forget()
+        # # Hide the hint label
+        # self.hint_label.pack_forget()
+
+        # the new hint must inform the client about how they can close the GUI
+        self.update_hint(
+            "NOTE: In order to close this GUI, press the 'close' button of the app's window.",
+            "gray"
+        )
 
         threading.Thread(target=self.accept_clients, daemon=True).start()
 
+    # to update the hint label's content and color
+    def update_hint(self, new_text, new_color):
+        self.hint_label.config(text=new_text, fg=new_color)
+    
     def accept_clients(self):
         while self.running:
             try:
