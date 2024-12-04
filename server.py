@@ -9,13 +9,33 @@ class ServerGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Server")
-        self.log_box = tk.Listbox(self.root, width=80, height=20)
-        self.log_box.pack()
+        
+        # for responsiveness
+        self.root.geometry("500x700")  
 
-        self.start_button = tk.Button(self.root, text="Start Server", command=self.start_server)
-        self.start_button.pack()
-        self.select_dir_button = tk.Button(self.root, text="Select Directory", command=self.select_directory)
-        self.select_dir_button.pack()
+        # Log box with scrollbars
+        self.log_frame = tk.Frame(self.root)
+        self.log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.log_box = tk.Text(self.log_frame, wrap=tk.WORD, state=tk.DISABLED)
+        self.log_box.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.log_scroll = tk.Scrollbar(self.log_frame, command=self.log_box.yview)
+        self.log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log_box.config(yscrollcommand=self.log_scroll.set)
+
+        # a hint message for the first-timer who might not know what to do
+        self.hint_label = tk.Label(
+            self.root, 
+            text="Hint: Select a directory first, then start the server.",
+            fg="blue",
+            anchor="w"
+        )
+        self.hint_label.pack(fill=tk.X, padx=10)
+
+        # Buttons
+        self.select_dir_button = tk.Button(self.root, text="Select Directory", command=self.select_directory, width=20)
+        self.select_dir_button.pack(pady=(10, 0))  # Slight padding for neatness
+        self.start_button = tk.Button(self.root, text="Start Server", command=self.start_server, width=20)
+        self.start_button.pack(pady=(5, 10))
 
         self.server_socket = None
         self.client_threads = []
@@ -29,13 +49,15 @@ class ServerGUI:
         self.load_metadata()
 
     def log(self, message):
-        self.log_box.insert(tk.END, message)
-        self.log_box.yview(tk.END)
+        self.log_box.config(state=tk.NORMAL)
+        self.log_box.insert(tk.END, message + "\n")
+        self.log_box.see(tk.END)
+        self.log_box.config(state=tk.DISABLED)
 
     def select_directory(self):
         self.files_dir = filedialog.askdirectory()
         if self.files_dir:
-            self.log(f"Files directory set to: {self.files_dir}")
+            self.log(f"1]-> Files directory set to:\t\n{self.files_dir}\n")
 
     def start_server(self):
         if not self.files_dir:
@@ -49,7 +71,10 @@ class ServerGUI:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind(('', self.port))
         self.server_socket.listen(5)
-        self.log(f"Server started on port {self.port}")
+        self.log(f"2]-> Server started on port {self.port}\n")
+
+        # Hide the hint label
+        self.hint_label.pack_forget()
 
         threading.Thread(target=self.accept_clients, daemon=True).start()
 
