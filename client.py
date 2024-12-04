@@ -9,31 +9,57 @@ from tkinter import filedialog, messagebox
 import pickle
 import os
 
+
 class ClientGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Client")
-        self.log_box = tk.Listbox(self.root, width=80, height=20)
-        self.log_box.pack()
 
-        self.connect_button = tk.Button(self.root, text="Connect to Server", command=self.connect_to_server)
-        self.connect_button.pack()
-        self.upload_button = tk.Button(self.root, text="Upload File", command=self.upload_file, state=tk.DISABLED)
-        self.upload_button.pack()
-        self.list_button = tk.Button(self.root, text="List Files", command=self.list_files, state=tk.DISABLED)
-        self.list_button.pack()
-        self.download_button = tk.Button(self.root, text="Download File", command=self.download_file, state=tk.DISABLED)
-        self.download_button.pack()
-        self.delete_button = tk.Button(self.root, text="Delete File", command=self.delete_file, state=tk.DISABLED)
-        self.delete_button.pack()
+        # Configure grid layout
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        self.root.rowconfigure(1, weight=0)
+
+        # Create log box using Text widget
+        self.log_box = tk.Text(self.root, wrap="word", state="disabled", height=20)
+        self.log_box.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+        # Add vertical scrollbar to the log box
+        self.scrollbar = tk.Scrollbar(self.root, command=self.log_box.yview)
+        self.scrollbar.grid(row=0, column=1, sticky="ns")
+        self.log_box.configure(yscrollcommand=self.scrollbar.set)
+
+        # Add buttons
+        self.button_frame = tk.Frame(self.root)
+        self.button_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="ew")
+        self.button_frame.columnconfigure(0, weight=1)
+
+        self.connect_button = tk.Button(self.button_frame, text="Connect to Server", command=self.connect_to_server)
+        self.connect_button.grid(row=0, column=0, padx=5)
+
+        self.upload_button = tk.Button(self.button_frame, text="Upload File", command=self.upload_file, state=tk.DISABLED)
+        self.upload_button.grid(row=0, column=1, padx=5)
+
+        self.list_button = tk.Button(self.button_frame, text="List Files", command=self.list_files, state=tk.DISABLED)
+        self.list_button.grid(row=0, column=2, padx=5)
+
+        self.download_button = tk.Button(self.button_frame, text="Download File", command=self.download_file, state=tk.DISABLED)
+        self.download_button.grid(row=0, column=3, padx=5)
+
+        self.delete_button = tk.Button(self.button_frame, text="Delete File", command=self.delete_file, state=tk.DISABLED)
+        self.delete_button.grid(row=0, column=4, padx=5)
 
         self.client_socket = None
         self.username = None
 
+    # a log box that is responsive to size changes, 
+    # has selectable text and 
+    # wraps long messages
     def log(self, message):
-        self.log_box.insert(tk.END, message)
-        self.log_box.yview(tk.END)
-
+        self.log_box.configure(state="normal")  # Enable editing temporarily
+        self.log_box.insert(tk.END, message + "\n")
+        self.log_box.see(tk.END)  # Scroll to the latest message
+        self.log_box.configure(state="disabled")  # Make it read-only again
 
     # a single pop-up window for connection with 3 fields to complete
     def connect_to_server(self):
