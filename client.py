@@ -8,54 +8,13 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import pickle
 import os
+import time
 
-
-# class ClientGUI:
-#     def __init__(self):
-#         self.root = tk.Tk()
-#         self.root.title("Client")
-
-#         # for responsiveness
-#         self.root.geometry("600x500") 
-
-#         # Configure grid layout
-#         self.root.columnconfigure(0, weight=1)
-#         self.root.rowconfigure(0, weight=1)
-#         self.root.rowconfigure(1, weight=0)
-
-#         # Create log box using Text widget
-#         self.log_box = tk.Text(self.root, wrap="word", state="disabled", height=20)
-#         self.log_box.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-
-#         # Add vertical scrollbar to the log box
-#         self.scrollbar = tk.Scrollbar(self.root, command=self.log_box.yview)
-#         self.scrollbar.grid(row=0, column=1, sticky="ns")
-#         self.log_box.configure(yscrollcommand=self.scrollbar.set)
-
-#         # Add buttons
-#         self.button_frame = tk.Frame(self.root)
-#         self.button_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="ew")
-#         self.button_frame.columnconfigure(0, weight=1)
-
-#         self.connect_button = tk.Button(self.button_frame, text="Connect to Server", command=self.connect_to_server)
-#         self.connect_button.grid(row=0, column=0, padx=5)
-
-#         self.upload_button = tk.Button(self.button_frame, text="Upload File", command=self.upload_file, state=tk.DISABLED)
-#         self.upload_button.grid(row=0, column=1, padx=5)
-
-#         self.list_button = tk.Button(self.button_frame, text="List Files", command=self.list_files, state=tk.DISABLED)
-#         self.list_button.grid(row=0, column=2, padx=5)
-
-#         self.download_button = tk.Button(self.button_frame, text="Download File", command=self.download_file, state=tk.DISABLED)
-#         self.download_button.grid(row=0, column=3, padx=5)
-
-#         self.delete_button = tk.Button(self.button_frame, text="Delete File", command=self.delete_file, state=tk.DISABLED)
-#         self.delete_button.grid(row=0, column=4, padx=5)
-
-#         self.client_socket = None
-#         self.username = None
-
-
+"""
+Convention:
+1. 's]-> ...' means success of an operation
+2. 'e]-> ...' means error for an attempt
+"""
 
 class ClientGUI:
     def __init__(self):
@@ -82,7 +41,7 @@ class ClientGUI:
         # Add hint label
         self.hint_label = tk.Label(
             self.root,
-            text="Hint: Connect to a server by providing IP, port, and username first. "
+            text="HINT: Connect to a server by providing IP, port, and username first. "
                  "Then you can upload, view, download, or delete files.",
             fg="red",
             wraplength=500,
@@ -168,7 +127,7 @@ class ClientGUI:
                     # begin the thread to listen for incoming messages
                     threading.Thread(target=self.listen_for_notifications, daemon=True).start()
             except Exception as e:
-                self.log(f"!!! Error connecting to server: {e} !!!\n")
+                self.log(f"e]-> Error connecting to server: {e}!\n")
                 self.client_socket = None
 
         # Create a new window for connection details
@@ -211,7 +170,7 @@ class ClientGUI:
                     break
                 self.log(data.decode())
             except Exception as e:
-                self.log(f"\n !!! Error: {e} !!!")
+                self.log(f"e]-> Error in listening for notifications: {e}!\n")
                 break
 
     def enable_buttons(self):
@@ -232,23 +191,42 @@ class ClientGUI:
 
             command = {"type": "upload", "filename": filename, "content": content}
             self.send_with_size(self.client_socket, command)
-            self.log(f"Uploaded file: {filename}")
+            self.log(f"s]-> Uploaded file: {filename}")
         except Exception as e:
-            self.log(f"\n!!! Error uploading file: {e} !!!")
+            self.log(f"e]-> Error in uploading file: {e}!\n")
 
     def list_files(self):
-        try:
-            command = {"type": "list"}
-            self.send_with_size(self.client_socket, command)
-            file_list = self.recv_all(self.client_socket)
-            self.log("\n") # for better visuals
-            self.log("Files on server:")
-            for file in file_list:
-                # since we don't care about the server's naming convention,
-                # remove the part before the first underscore
-                self.log(f"> Name: {file['filename'].split('_', 1)[1]}  |  Owner: {file['owner']}")
-        except Exception as e:
-            self.log(f"Error listing files: {e}")
+        """
+        - Ensure the client processes only valid data (a list of dictionaries). If the response is malformed, ignore it or log a warning.
+        - If an error occurs, implement a retry mechanism to reattempt the operation after a short delay.
+        """
+        retries = 3
+        for attempt in range(retries):
+            try:
+                command = {"type": "list"}
+                self.send_with_size(self.client_socket, command)
+                file_list = self.recv_all(self.client_socket)
+
+                if not isinstance(file_list, list):  # Validate the response
+                    raise ValueError("e]-> Server response is not a valid file list.\n")
+
+                try:
+                    self.log("\n") 
+                    self.log("Files on the Server:")
+                    for file in file_list:
+                        self.log(f"> Name: {file['filename'].split('_', 1)[1]}  |  Owner: {file['owner']}")
+                    return  # Exit if successful
+                except KeyError:
+                    pass  # Ignore this iteration if the data is malformed
+            except Exception as e:
+                self.log(f"e]-> Error listing files: {e}\n")
+                if attempt < retries - 1:
+                    wait_time = 0.1
+                    # self.log(f"- Attempt {attempt}: Trying again after {wait_time} seconds...")
+                    time.sleep(wait_time)  # Wait before retrying
+                else:
+                    self.log("e]-> Unable to retrieve file list after multiple attempts.\n")
+
 
     def delete_file(self):
         filename = tk.simpledialog.askstring("Input", "Enter the filename to delete:")
@@ -261,7 +239,7 @@ class ClientGUI:
             response = self.recv_all(self.client_socket)
             self.log(response.get("message", "File deleted successfully."))
         except Exception as e:
-            self.log(f"Error deleting file: {e}")
+            self.log(f"e]-> Error deleting file: {e}!\n")
 
     def download_file(self):
         filename = tk.simpledialog.askstring("Input", "Enter the filename to download:")
@@ -281,9 +259,9 @@ class ClientGUI:
                         f.write(response["content"])
                     self.log(f"File downloaded: {filename}")
             else:
-                self.log(f"Error: {response['message']}")
+                self.log(f"e]-> Error in file download's status code:\n\t{response['message']}\n")
         except Exception as e:
-            self.log(f"Error downloading file: {e}")
+            self.log(f"e]-> Error downloading file: {e}!\n")
 
     def run(self):
         self.root.mainloop()
