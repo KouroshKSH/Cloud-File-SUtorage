@@ -159,8 +159,11 @@ class ClientGUI:
                     # user should now be able to use the 4 main buttons
                     self.enable_buttons()
 
-                    # get rid of the hint as the user no longer needs it
-                    self.hint_label.grid_forget()
+                    # the new hint must inform the client about how they can close the GUI
+                    self.update_hint(
+                        "NOTE: In order to close this GUI, press the 'close' button of the app's window.",
+                        "gray"
+                    )
 
                     # begin the thread to listen for incoming messages
                     threading.Thread(target=self.listen_for_notifications, daemon=True).start()
@@ -194,6 +197,11 @@ class ClientGUI:
         # Adjust grid to be responsive
         connection_window.columnconfigure(1, weight=1)
         connection_window.bind("<Return>", lambda event: submit_details())
+
+
+    # to update the hint label's content and color
+    def update_hint(self, new_text, new_color):
+        self.hint_label.config(text=new_text, fg=new_color)
 
     def listen_for_notifications(self):
         while True:
