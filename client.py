@@ -10,10 +10,60 @@ import pickle
 import os
 
 
+# class ClientGUI:
+#     def __init__(self):
+#         self.root = tk.Tk()
+#         self.root.title("Client")
+
+#         # for responsiveness
+#         self.root.geometry("600x500") 
+
+#         # Configure grid layout
+#         self.root.columnconfigure(0, weight=1)
+#         self.root.rowconfigure(0, weight=1)
+#         self.root.rowconfigure(1, weight=0)
+
+#         # Create log box using Text widget
+#         self.log_box = tk.Text(self.root, wrap="word", state="disabled", height=20)
+#         self.log_box.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+#         # Add vertical scrollbar to the log box
+#         self.scrollbar = tk.Scrollbar(self.root, command=self.log_box.yview)
+#         self.scrollbar.grid(row=0, column=1, sticky="ns")
+#         self.log_box.configure(yscrollcommand=self.scrollbar.set)
+
+#         # Add buttons
+#         self.button_frame = tk.Frame(self.root)
+#         self.button_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="ew")
+#         self.button_frame.columnconfigure(0, weight=1)
+
+#         self.connect_button = tk.Button(self.button_frame, text="Connect to Server", command=self.connect_to_server)
+#         self.connect_button.grid(row=0, column=0, padx=5)
+
+#         self.upload_button = tk.Button(self.button_frame, text="Upload File", command=self.upload_file, state=tk.DISABLED)
+#         self.upload_button.grid(row=0, column=1, padx=5)
+
+#         self.list_button = tk.Button(self.button_frame, text="List Files", command=self.list_files, state=tk.DISABLED)
+#         self.list_button.grid(row=0, column=2, padx=5)
+
+#         self.download_button = tk.Button(self.button_frame, text="Download File", command=self.download_file, state=tk.DISABLED)
+#         self.download_button.grid(row=0, column=3, padx=5)
+
+#         self.delete_button = tk.Button(self.button_frame, text="Delete File", command=self.delete_file, state=tk.DISABLED)
+#         self.delete_button.grid(row=0, column=4, padx=5)
+
+#         self.client_socket = None
+#         self.username = None
+
+
+
 class ClientGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Client")
+
+        # for responsiveness
+        self.root.geometry("700x500")
 
         # Configure grid layout
         self.root.columnconfigure(0, weight=1)
@@ -28,6 +78,17 @@ class ClientGUI:
         self.scrollbar = tk.Scrollbar(self.root, command=self.log_box.yview)
         self.scrollbar.grid(row=0, column=1, sticky="ns")
         self.log_box.configure(yscrollcommand=self.scrollbar.set)
+
+        # Add hint label
+        self.hint_label = tk.Label(
+            self.root,
+            text="Hint: Connect to a server by providing IP, port, and username first. "
+                 "Then you can upload, view, download, or delete files.",
+            fg="red",
+            wraplength=500,
+            justify="left"
+        )
+        self.hint_label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
         # Add buttons
         self.button_frame = tk.Frame(self.root)
@@ -51,6 +112,7 @@ class ClientGUI:
 
         self.client_socket = None
         self.username = None
+
 
     # a log box that is responsive to size changes, 
     # has selectable text and 
@@ -92,17 +154,24 @@ class ClientGUI:
                     self.client_socket.close()
                     self.client_socket = None
                 else:
-                    self.log(f"Connected to server as {self.username}")
+                    self.log(f"1]-> Connected to server as {self.username}!\n")
+                    
+                    # user should now be able to use the 4 main buttons
                     self.enable_buttons()
+
+                    # get rid of the hint as the user no longer needs it
+                    self.hint_label.grid_forget()
+
+                    # begin the thread to listen for incoming messages
                     threading.Thread(target=self.listen_for_notifications, daemon=True).start()
             except Exception as e:
-                self.log(f"Error connecting to server: {e}")
+                self.log(f"!!! Error connecting to server: {e} !!!\n")
                 self.client_socket = None
 
         # Create a new window for connection details
         connection_window = tk.Toplevel(self.root)
         connection_window.title("Connect to Server")
-        connection_window.geometry("300x200")
+        connection_window.geometry("350x250")
         connection_window.resizable(True, True)
 
         # Add input fields
@@ -169,7 +238,7 @@ class ClientGUI:
             for file in file_list:
                 # since we don't care about the server's naming convention,
                 # remove the part before the first underscore
-                self.log(f"> {file['filename'].split('_', 1)[1]} (Owner: {file['owner']})")
+                self.log(f"> Name: {file['filename'].split('_', 1)[1]}  |  Owner: {file['owner']}")
         except Exception as e:
             self.log(f"Error listing files: {e}")
 
