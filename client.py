@@ -1,7 +1,7 @@
 """
 # Convention
-    1. 's]-> ...' means success of an operation
-    2. 'e]-> ...' means error for an attempt
+    1. '<s> ...' means success of an operation
+    2. '<e> ...' means error for an attempt
 
 # Good to know
     Local Host is 127.0.0.1
@@ -78,6 +78,13 @@ class ClientGUI:
     # wraps long messages
     def log(self, message):
         self.log_box.configure(state="normal")  # Enable editing temporarily
+        self.log_box.insert(tk.END, message + "\n\n")
+        self.log_box.see(tk.END)  # Scroll to the latest message
+        self.log_box.configure(state="disabled")  # Make it read-only again
+
+    # for a single item logging, has one less newline
+    def log_item(self, message):
+        self.log_box.configure(state="normal")  # Enable editing temporarily
         self.log_box.insert(tk.END, message + "\n")
         self.log_box.see(tk.END)  # Scroll to the latest message
         self.log_box.configure(state="disabled")  # Make it read-only again
@@ -117,7 +124,7 @@ class ClientGUI:
             try:
                 server_port = int(server_port)
             except ValueError:
-                messagebox.showerror("Error", "Port must be a number!")
+                messagebox.showerror("Error", "Port must be a positive integer number!")
                 return
 
             connection_window.destroy()
@@ -133,7 +140,7 @@ class ClientGUI:
                     self.client_socket.close()
                     self.client_socket = None
                 else:
-                    self.log(f"s]-> Connected to server as {self.username}!\n")
+                    self.log(f"<s> Connected to server as {self.username}")
                     
                     # user should now be able to use the 4 main buttons
                     self.enable_buttons()
@@ -147,7 +154,7 @@ class ClientGUI:
                     # begin the thread to listen for incoming messages
                     threading.Thread(target=self.listen_for_notifications, daemon=True).start()
             except Exception as e:
-                self.log(f"e]-> Error connecting to server: {e}!\n")
+                self.log(f"<e> Error connecting to server: {e}")
                 self.client_socket = None
 
         # Create a new window for connection details
@@ -194,7 +201,7 @@ class ClientGUI:
                     break
                 self.log(data.decode())
             except Exception as e:
-                self.log(f"e]-> Error in listening for notifications: {e}!\n")
+                self.log(f"<e> Error in listening for notifications: {e}")
                 break
 
     # user can gain access to the other buttons now
@@ -221,9 +228,9 @@ class ClientGUI:
 
             command = {"type": "upload", "filename": filename, "content": content}
             self.send_with_size(self.client_socket, command)
-            self.log(f"s]-> Successfully uploaded the file: {filename}\n")
+            self.log(f"<s> Successfully uploaded the file: {filename}")
         except Exception as e:
-            self.log(f"e]-> Error in uploading file: {e}!\n")
+            self.log(f"<e> Error in uploading file: {e}")
 
     def list_files(self):
         """
@@ -239,42 +246,36 @@ class ClientGUI:
 
                 # Validate the response
                 if not isinstance(file_list, list):  
-                    raise ValueError("e]-> Server response is not a valid file list.\n")
+                    raise ValueError("<e> Server response is not a valid file list.\n")
 
 
                 try:
-                    self.log("\n") 
-                    self.log("Files on the Server:")
+                    self.log_item("\nFiles on the Server:")
                     
                     # for better viewing experience,
                     # calculate the maximum file name length
                     # optional extra padding for uniformity
-                    max_name_length = max(len(file['filename'].split('_', 1)[1]) for file in file_list) + 5  # Adjust padding as needed
+                    const_padding = 5 # change this as needed
+                    max_name_length = max(len(file['filename'].split('_', 1)[1]) for file in file_list) + const_padding
                     
                     # Format each row with aligned columns
                     for file in file_list:
                         file_name = file['filename'].split('_', 1)[1]
                         owner = file['owner']
-                        self.log(f"> Name: {file_name.ljust(max_name_length)}|  Owner: {owner}")
+                        self.log_item(f"> Name: {file_name.ljust(max_name_length)}|  Owner: {owner}")
                     
+                    self.log("\n\t\t<----- End of List ----->")
                     return  # Exit if successful
-
-                # try:
-                #     self.log("\n") 
-                #     self.log("Files on the Server:")
-                #     for file in file_list:
-                #         self.log(f"> Name: {file['filename'].split('_', 1)[1]}  |  Owner: {file['owner']}")
-                #     return  # Exit if successful
                 except KeyError:
                     pass  # Ignore this iteration if the data is malformed
             except Exception as e:
-                self.log(f"e]-> Error listing files: {e}\n")
+                self.log(f"<e> Error listing files: {e}\n")
                 if attempt < retries - 1:
                     wait_time = 0.1
                     # self.log(f"- Attempt {attempt}: Trying again after {wait_time} seconds...")
                     time.sleep(wait_time)  # Wait before retrying
                 else:
-                    self.log("e]-> Unable to retrieve file list after multiple attempts.\n")
+                    self.log("<e> Unable to retrieve file list after multiple attempts.")
 
 
     def delete_file(self):
@@ -288,7 +289,7 @@ class ClientGUI:
             response = self.recv_all(self.client_socket)
             self.log(response.get("message", "File deleted successfully."))
         except Exception as e:
-            self.log(f"e]-> Error deleting file: {e}!\n")
+            self.log(f"<e> Error deleting file: {e}")
 
     def download_file(self):
         filename = tk.simpledialog.askstring("Input", "Enter the filename to download:")
@@ -308,24 +309,33 @@ class ClientGUI:
                         f.write(response["content"])
                     self.log(f"File downloaded: {filename}")
             else:
-                self.log(f"e]-> Error in file download's status code:\n\t{response['message']}\n")
+                self.log(f"<e> Error in file download's status code:\n\t{response['message']}")
         except Exception as e:
-            self.log(f"e]-> Error downloading file: {e}!\n")
+            self.log(f"<e> Error downloading file: {e}")
 
     def run(self):
         self.root.mainloop()
 
     def send_with_size(self, sock, data):
-        """Send data with its size prepended."""
+        """
+        - Send data with its size prepended.
+        - Can change the fixed-width manually.
+        """
         serialized_data = pickle.dumps(data)
         data_length = len(serialized_data)
-        sock.sendall(f"{data_length:<10}".encode())  # Send length as a fixed-width 10-character string
+
+        # to send length as a fixed-width 10-character string
+        sock.sendall(f"{data_length:<10}".encode())
         sock.sendall(serialized_data)
 
     def recv_all(self, sock):
-        """Receive all data from the socket."""
-        data_length = int(sock.recv(10).decode().strip())  # Read the size of the incoming data
-        data = b""
+        """
+        - Receive all data from the socket.
+        - Note that they're encoded as binary earlier.
+        """
+        # to read the size of the incoming data
+        data_length = int(sock.recv(10).decode().strip()) 
+        data = b"" # for handling binary encodings/decodings
         while len(data) < data_length:
             packet = sock.recv(4096)
             if not packet:
