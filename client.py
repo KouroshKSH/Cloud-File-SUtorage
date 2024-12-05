@@ -84,6 +84,26 @@ class ClientGUI:
 
     # a single pop-up window for connection with 3 fields to complete
     def connect_to_server(self):
+        
+        # to add placeholder functionality for better UI/UX
+        def add_placeholder(entry, placeholder_text):
+            def on_focus_in(event):
+                if entry.get() == placeholder_text:
+                    entry.delete(0, tk.END)
+                    entry.config(fg="black")
+
+            def on_focus_out(event):
+                if not entry.get():
+                    entry.insert(0, placeholder_text)
+                    entry.config(fg="gray")
+
+            entry.insert(0, placeholder_text)
+            entry.config(fg="gray")
+            entry.bind("<FocusIn>", on_focus_in)
+            entry.bind("<FocusOut>", on_focus_out)
+
+
+        # sends the inputs of the user to be verified by the server
         def submit_details():
             server_ip = ip_entry.get().strip()
             server_port = port_entry.get().strip()
@@ -140,14 +160,17 @@ class ClientGUI:
         tk.Label(connection_window, text="Server IP:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         ip_entry = tk.Entry(connection_window)
         ip_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        add_placeholder(ip_entry, "Enter server IP (e.g., 127.0.0.1 for local host)")
 
         tk.Label(connection_window, text="Server Port:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
         port_entry = tk.Entry(connection_window)
         port_entry.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+        add_placeholder(port_entry, "Enter server port. Must be a positive integer number.")
 
         tk.Label(connection_window, text="Username:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         username_entry = tk.Entry(connection_window)
         username_entry.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+        add_placeholder(username_entry, "Enter your username (get creative :)")
 
         # Add a button to submit details
         submit_button = tk.Button(connection_window, text="Connect", command=submit_details)
@@ -157,6 +180,7 @@ class ClientGUI:
         connection_window.columnconfigure(1, weight=1)
         connection_window.bind("<Return>", lambda event: submit_details())
 
+    
 
     # to update the hint label's content and color
     def update_hint(self, new_text, new_color):
