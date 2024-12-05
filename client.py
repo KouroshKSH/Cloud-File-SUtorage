@@ -1,5 +1,10 @@
 """
-Local Host: 127.0.0.1
+# Convention
+    1. 's]-> ...' means success of an operation
+    2. 'e]-> ...' means error for an attempt
+
+# Good to know
+    Local Host is 127.0.0.1
 """
 
 import socket
@@ -10,11 +15,6 @@ import pickle
 import os
 import time
 
-"""
-Convention:
-1. 's]-> ...' means success of an operation
-2. 'e]-> ...' means error for an attempt
-"""
 
 class ClientGUI:
     def __init__(self):
@@ -41,7 +41,7 @@ class ClientGUI:
         # Add hint label
         self.hint_label = tk.Label(
             self.root,
-            text="HINT: Connect to a server by providing IP, port, and username first. "
+            text="HINT > Connect to a server by providing IP, port, and username first. "
                  "Then you can upload, view, download, or delete files.",
             fg="red",
             wraplength=500,
@@ -133,14 +133,14 @@ class ClientGUI:
                     self.client_socket.close()
                     self.client_socket = None
                 else:
-                    self.log(f"1]-> Connected to server as {self.username}!\n")
+                    self.log(f"s]-> Connected to server as {self.username}!\n")
                     
                     # user should now be able to use the 4 main buttons
                     self.enable_buttons()
 
                     # the new hint must inform the client about how they can close the GUI
                     self.update_hint(
-                        "NOTE: In order to close this GUI, press the 'close' button of the app's window.",
+                        "NOTE > In order to close this GUI, press the 'close' button of the app's window.",
                         "gray"
                     )
 
@@ -153,19 +153,19 @@ class ClientGUI:
         # Create a new window for connection details
         connection_window = tk.Toplevel(self.root)
         connection_window.title("Connect to Server")
-        connection_window.geometry("350x250")
+        connection_window.geometry("450x350")
         connection_window.resizable(True, True)
 
         # Add input fields
         tk.Label(connection_window, text="Server IP:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         ip_entry = tk.Entry(connection_window)
         ip_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
-        add_placeholder(ip_entry, "Enter server IP (e.g., 127.0.0.1 for local host)")
+        add_placeholder(ip_entry, "Enter the server's IPv4 address here (e.g., 127.0.0.1 for local host)")
 
         tk.Label(connection_window, text="Server Port:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
         port_entry = tk.Entry(connection_window)
         port_entry.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-        add_placeholder(port_entry, "Enter server port. Must be a positive integer number.")
+        add_placeholder(port_entry, "Enter the server's port number (must be a positive integer number)")
 
         tk.Label(connection_window, text="Username:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         username_entry = tk.Entry(connection_window)
@@ -197,25 +197,31 @@ class ClientGUI:
                 self.log(f"e]-> Error in listening for notifications: {e}!\n")
                 break
 
+    # user can gain access to the other buttons now
     def enable_buttons(self):
         self.upload_button.config(state=tk.NORMAL)
         self.list_button.config(state=tk.NORMAL)
         self.download_button.config(state=tk.NORMAL)
         self.delete_button.config(state=tk.NORMAL)
 
+
     def upload_file(self):
         file_path = filedialog.askopenfilename()
+
+        # can't upload a file if there's no path determined
         if not file_path:
             return
 
         filename = os.path.basename(file_path)
         try:
             with open(file_path, 'rb') as f:
+                # this block almost never fails,
+                # hence the file can be read successfully
                 content = f.read()
 
             command = {"type": "upload", "filename": filename, "content": content}
             self.send_with_size(self.client_socket, command)
-            self.log(f"s]-> Uploaded file: {filename}")
+            self.log(f"s]-> Successfully uploaded the file: {filename}\n")
         except Exception as e:
             self.log(f"e]-> Error in uploading file: {e}!\n")
 
@@ -224,22 +230,41 @@ class ClientGUI:
         - Ensure the client processes only valid data (a list of dictionaries). If the response is malformed, ignore it or log a warning.
         - If an error occurs, implement a retry mechanism to reattempt the operation after a short delay.
         """
-        retries = 3
+        retries = 2 # can be changed to any number, but the higher it gets, the longer it takes
         for attempt in range(retries):
             try:
                 command = {"type": "list"}
                 self.send_with_size(self.client_socket, command)
                 file_list = self.recv_all(self.client_socket)
 
-                if not isinstance(file_list, list):  # Validate the response
+                # Validate the response
+                if not isinstance(file_list, list):  
                     raise ValueError("e]-> Server response is not a valid file list.\n")
+
 
                 try:
                     self.log("\n") 
                     self.log("Files on the Server:")
+                    
+                    # for better viewing experience,
+                    # calculate the maximum file name length
+                    # optional extra padding for uniformity
+                    max_name_length = max(len(file['filename'].split('_', 1)[1]) for file in file_list) + 5  # Adjust padding as needed
+                    
+                    # Format each row with aligned columns
                     for file in file_list:
-                        self.log(f"> Name: {file['filename'].split('_', 1)[1]}  |  Owner: {file['owner']}")
+                        file_name = file['filename'].split('_', 1)[1]
+                        owner = file['owner']
+                        self.log(f"> Name: {file_name.ljust(max_name_length)}|  Owner: {owner}")
+                    
                     return  # Exit if successful
+
+                # try:
+                #     self.log("\n") 
+                #     self.log("Files on the Server:")
+                #     for file in file_list:
+                #         self.log(f"> Name: {file['filename'].split('_', 1)[1]}  |  Owner: {file['owner']}")
+                #     return  # Exit if successful
                 except KeyError:
                     pass  # Ignore this iteration if the data is malformed
             except Exception as e:
