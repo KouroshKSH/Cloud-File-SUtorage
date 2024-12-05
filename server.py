@@ -1,10 +1,60 @@
 """
+
+# CS 408 Project: Cloud File SUtorage
+
+## Group 8:
+1. Milad Bafarassat
+2. Kourosh Sharifi
+
+---
+
+
+# Server GUI Application Documentation
+
+## Overview
+This Python application is a multi-client server with a graphical user interface (GUI) built using the Tkinter library. It allows clients to connect and interact with the server to perform file operations such as uploading, downloading, listing, and deleting files. The server is capable of handling multiple client connections simultaneously using threading.
+
+## Structure
+- **ServerGUI Class**: Manages the GUI and server functionality.
+  - **Log box**: Displays logs and messages about the server and client interactions.
+  - **Buttons**: Provides options for selecting the directory, starting the server, and viewing operations.
+  - **Directory selection**: A dialog box that lets the user select a directory for file storage.
+  - **Server operations**: The server listens for incoming connections and handles client commands such as file uploads, downloads, deletions, and listing files.
+  - **Threading**: Each client is handled in a separate thread to allow concurrent connections.
+
+## Usage
+1. **Start the application**: Run the script to launch the GUI.
+2. **Select a directory**: Click the "Select Directory" button to choose the directory for file storage.
+3. **Start the server**: After selecting the directory, click the "Start Server" button to start the server.
+4. **Client connection**: Clients can now connect to the server using the local IP (127.0.0.1) and the selected port.
+5. **Perform operations**: Clients can upload, download, list, and delete files based on their commands.
+6. **Shutdown the server**: The server can be stopped by closing the GUI window.
+
+## Important Information
+- Local host IP is `127.0.0.1`.
+- The server requires a valid directory and port number to function.
+- File metadata (file ownership information) is saved and loaded from a file named `file_metadata.pkl`.
+
+## Commands
+- `<s> ...`: Indicates a successful operation.
+- `<e> ...`: Indicates an error during an operation.
+
+## Dependencies
+- `socket`: For creating the server socket and handling client connections.
+- `threading`: To allow concurrent client connections.
+- `tkinter`: For the graphical user interface.
+- `os`: For handling file operations.
+- `pickle`: For serializing and deserializing metadata.
+- `datetime`: For adding timestamps to log messages.
+
+---
+
 # Convention
-    1. '<s> ...' means success of an operation
-    2. '<e> ...' means error for an attempt
+1. '<s> ...' means success of an operation
+2. '<e> ...' means error for an attempt
 
 # Good to know
-    Local Host is 127.0.0.1
+Local Host is 127.0.0.1
 """
 
 
