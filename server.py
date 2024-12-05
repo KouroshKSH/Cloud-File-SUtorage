@@ -121,13 +121,14 @@ class ServerGUI:
         while self.running:
             try:
                 client_socket, addr = self.server_socket.accept()
-                self.log(f"Connection attempt from {addr}")
+                self.log(f"Connection attempt from {addr}...")
 
                 # each client needs a new thread
                 client_thread = threading.Thread(target=self.handle_client, 
                                                  args=(client_socket,), 
                                                  daemon=True)
                 self.client_threads.append(client_thread)
+                self.log("<s> New client added.")
                 client_thread.start()
             except Exception as e:
                 self.log(f"<e> Error accepting client: {e}\n")
@@ -153,12 +154,16 @@ class ServerGUI:
                         break
 
                     if command["type"] == "upload":
+                        self.log(f"Client {client_name} attempted uploading...")
                         self.handle_upload(client_name, command, client_socket)
                     elif command["type"] == "list":
+                        self.log(f"Client {client_name} attempted file-listing...")
                         self.handle_list(client_socket)
                     elif command["type"] == "delete":
+                        self.log(f"Client {client_name} attempted deleting...")
                         self.handle_delete(client_name, command, client_socket)
                     elif command["type"] == "download":
+                        self.log(f"Client {client_name} attempted downloading...")
                         self.handle_download(command, client_socket)
                 except Exception as e:
                     self.log(f"<e> Error handling client command: {e}")
@@ -206,7 +211,7 @@ class ServerGUI:
 
         # Ensure thread-safe access
         with self.lock: 
-        
+            self.log("Handling the list of files and owners...")
             # this is a list, where each item is a dictionary
             # and each dictionary has the file's name as the key,
             # and the file's owner as its value because filenames are unique but not owner names
@@ -221,6 +226,7 @@ class ServerGUI:
             self.send_with_size(client_socket, file_list)
         else:
             self.send_with_size(client_socket, [])
+
 
     # in order to delete a file, that specific owner should determine the exact file
     # obviously, one can NOT delete someone else's file
@@ -260,10 +266,12 @@ class ServerGUI:
         if os.path.exists(self.metadata_file):
             with open(self.metadata_file, 'rb') as f:
                 self.file_owners = pickle.load(f)
+                self.log("<s> Loaded metadata.")
 
     def save_metadata(self):
         with open(self.metadata_file, 'wb') as f:
             pickle.dump(self.file_owners, f)
+            self.log("<s> Saved metadata.")
 
     def send_with_size(self, sock, data):
         """
