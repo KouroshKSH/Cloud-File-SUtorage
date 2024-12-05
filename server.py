@@ -49,7 +49,7 @@ class ServerGUI:
         
         # Slight padding for neatness
         self.select_dir_button.pack(pady=(10, 0))  
-        self.start_button = tk.Button(self.root, text="Start Server", command=self.start_server, width=20)
+        self.start_button = tk.Button(self.root, text="Start Server", command=self.start_server, width=20, state=tk.DISABLED)
         self.start_button.pack(pady=(5, 10))
 
         self.server_socket = None
@@ -77,10 +77,15 @@ class ServerGUI:
         self.log_box.see(tk.END)
         self.log_box.config(state=tk.DISABLED)
 
+
     def select_directory(self):
         self.files_dir = filedialog.askdirectory()
         if self.files_dir:
             self.log(f"<s> Files directory set to:\n\t > {self.files_dir}")
+
+            # Enable the start button
+            self.start_button.config(state=tk.NORMAL)
+
 
     # given the directory and the port, the server will be up and running
     def start_server(self):
