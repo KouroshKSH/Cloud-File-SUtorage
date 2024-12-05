@@ -32,7 +32,7 @@ class ServerGUI:
         # a hint message for the first-timer who might not know what to do
         self.hint_label = tk.Label(
             self.root, 
-            text="Hint: Select a directory first, then start the server.",
+            text="Hint > Select a directory first, then start the server.",
             fg="blue",
             anchor="w"
         )
@@ -51,14 +51,17 @@ class ServerGUI:
         self.file_owners = {}
         self.running = True
 
-        # ??? should it be here ???
-        self.lock = Lock()  # Thread lock for shared resources
+        # Thread lock for shared resources
+        self.lock = Lock()
 
         # Persist file metadata
         self.metadata_file = "file_metadata.pkl"
         self.load_metadata()
 
     def log(self, message):
+        # TODO: include time stamp in logs
+        # write HERE
+        
         self.log_box.config(state=tk.NORMAL)
         self.log_box.insert(tk.END, message + "\n")
         self.log_box.see(tk.END)
@@ -67,34 +70,79 @@ class ServerGUI:
     def select_directory(self):
         self.files_dir = filedialog.askdirectory()
         if self.files_dir:
-            self.log(f"s]-> Files directory set to:\n|__ {self.files_dir}\n")
+            self.log(f"s]-> Files directory set to:\n> {self.files_dir}\n")
 
+    # given the directory and the port, the server will be up and running
     def start_server(self):
+
+        # to add placeholder functionality for better UI/UX
+        def add_placeholder(entry, placeholder_text):
+            def on_focus_in(event):
+                if entry.get() == placeholder_text:
+                    entry.delete(0, tk.END)
+                    entry.config(fg="black")
+
+            def on_focus_out(event):
+                if not entry.get():
+                    entry.insert(0, placeholder_text)
+                    entry.config(fg="gray")
+
+            entry.insert(0, placeholder_text)
+            entry.config(fg="gray")
+            entry.bind("<FocusIn>", on_focus_in)
+            entry.bind("<FocusOut>", on_focus_out)
+
+        # can't start the server if there's no directory to work with
         if not self.files_dir:
             messagebox.showerror("Error", "Select a directory first!")
             return
 
-        self.port = tk.simpledialog.askinteger("Input", "Enter server port:")
-        if not self.port:
-            return
+        # Custom pop-up window for port input
+        port_window = tk.Toplevel(self.root)
+        port_window.title("Set Server Port")
+        port_window.geometry("400x250")
+        port_window.resizable(False, False)
 
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind(('', self.port))
-        self.server_socket.listen(5)
-        self.log(f"s]-> Server started on port {self.port}\n")
+        tk.Label(port_window, text="Enter server's port number:").pack(pady=10)
+        port_entry = tk.Entry(port_window)
+        port_entry.pack(padx=20, pady=5)
+        add_placeholder(port_entry, "e.g., 8080")  # Add placeholder to port entry
+
+        # custom function for handling the pop-up for setting the port
+        def submit_port():
+            port = port_entry.get().strip()
+            if not port.isdigit():
+                messagebox.showerror("Error", "Port must be a positive integer number!")
+                return
+            self.port = int(port)
+            port_window.destroy()
+
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.bind(('', self.port))
+            self.server_socket.listen(5)
+            self.log(f"s]-> Server started on port {self.port}\n")
 
         # the new hint must inform the client about how they can close the GUI
         self.update_hint(
-            "NOTE: In order to close this GUI, press the 'close' button of the app's window.",
+            "NOTE > In order to close this GUI, press the 'close' button of the app's window.",
             "gray"
         )
 
+        # Add Submit button
+        submit_button = tk.Button(port_window, text="Start Server", command=submit_port)
+        submit_button.pack(pady=(10, 20))
+
+        # Handle pressing Enter key
+        port_window.bind("<Return>", lambda event: submit_port())
+
         threading.Thread(target=self.accept_clients, daemon=True).start()
+
 
     # to update the hint label's content and color
     def update_hint(self, new_text, new_color):
         self.hint_label.config(text=new_text, fg=new_color)
-    
+
+
     def accept_clients(self):
         while self.running:
             try:
@@ -107,6 +155,7 @@ class ServerGUI:
                 self.log(f"e]-> Error accepting client: {e}\n")
                 break
 
+
     def handle_client(self, client_socket):
         client_name = None  # Ensure client_name is always defined
         try:
@@ -117,7 +166,7 @@ class ServerGUI:
                 return
 
             self.clients[client_name] = client_socket
-            self.log(f"Client connected: {client_name}")
+            self.log(f"s]-> Client connected: {client_name}\n")
             client_socket.sendall(b"CONNECTED")
 
             while self.running:
@@ -151,6 +200,8 @@ class ServerGUI:
 
   
     def handle_upload(self, client_name, command, client_socket):
+        # in some rare cases, upload would fail with no apparent reason
+        # hence, I used the try-catch block to determine the issue 
         try:
             filename = f"{client_name}_{command['filename']}"
             filepath = os.path.join(self.files_dir, filename)
@@ -158,6 +209,8 @@ class ServerGUI:
                 f.write(command['content'])
             self.file_owners[filename] = client_name
             self.log(f"File uploaded: {filename} by {client_name}")
+
+            # to use the content later
             self.save_metadata()
             self.send_with_size(client_socket, {"status": "UPLOAD_SUCCESS"})
         except Exception as e:
@@ -171,6 +224,10 @@ class ServerGUI:
         - Validate `file_list` to ensure it's correctly formatted and non-empty before sending
         """
         with self.lock:  # Ensure thread-safe access
+            
+            # this is a list, where each item is a dictionary
+            # and each dictionary has the file's name as the key,
+            # and the file's owner as its value because filenames are unique but not owner names
             file_list = [{
                 "filename": f,
                  "owner": o} 
@@ -188,13 +245,18 @@ class ServerGUI:
         filename = f"{client_name}_{command['filename']}"
         filepath = os.path.join(self.files_dir, filename)
         if os.path.exists(filepath):
+            # the desired file actually exists in the server
             os.remove(filepath)
             del self.file_owners[filename]
+
+            # update the server's cache
             self.save_metadata()
             self.log(f"s]-> File deleted: {filename}\n")
             self.send_with_size(client_socket, {"status": "DELETE_SUCCESS"})
         else:
+            # can't delete file that doesn't exist in our server obviously
             self.send_with_size(client_socket, {"status": "ERROR", "message": "File not found."})
+
 
     def handle_download(self, command, client_socket):
         filename = f"{command['owner']}_{command['filename']}"
@@ -204,8 +266,13 @@ class ServerGUI:
                 file_content = f.read()
             self.send_with_size(client_socket, {"status": "SUCCESS", "content": file_content})
         else:
-            self.send_with_size(client_socket, {"status": "ERROR", "message": "File not found."})
+            # download almost never fails, however, there are some weird edge cases
+            # such as if you try to download cached files that actually don't exist
+            # but somehow appear in the files' list for no valid reason
+            self.send_with_size(client_socket, {"status": "ERROR", "message": "e]-> File not found.\n"})
 
+
+    # we use this metadata for handling large files (download/upload)
     def load_metadata(self):
         if os.path.exists(self.metadata_file):
             with open(self.metadata_file, 'rb') as f:
@@ -215,6 +282,32 @@ class ServerGUI:
         with open(self.metadata_file, 'wb') as f:
             pickle.dump(self.file_owners, f)
 
+    def send_with_size(self, sock, data):
+        """
+        - Send data with its size prepended.
+        - Can change the fixed-width manually.
+        """
+        serialized_data = pickle.dumps(data)
+        data_length = len(serialized_data)
+        
+        # to send length as a fixed-width 10-character string
+        sock.sendall(f"{data_length:<10}".encode())  
+        sock.sendall(serialized_data)
+
+    def recv_all(self, sock):
+        """
+        - Receive all data from the socket.
+        - Note that they're encoded as binary earlier.
+        """
+        # to read the size of the incoming data
+        data_length = int(sock.recv(10).decode().strip())  
+        data = b"" # for binary format
+        while len(data) < data_length:
+            packet = sock.recv(4096)
+            if not packet:
+                break
+            data += packet
+        return pickle.loads(data)
 
 
     def shutdown(self):
@@ -231,7 +324,7 @@ class ServerGUI:
                 client_socket.shutdown(socket.SHUT_RDWR)
                 client_socket.close()
             except Exception as e:
-                self.log(f"Error closing client socket for {client_name}: {e}")
+                self.log(f"e]-> Error closing client socket for {client_name}: {e}\n")
 
         # Wait for client threads to finish
         for thread in self.client_threads:
@@ -240,30 +333,13 @@ class ServerGUI:
         # Save metadata and gracefully exit
         self.save_metadata()
         self.log("Server shut down successfully.")
-        self.root.quit()
+        self.root.quit() # this works better than other techniques! do NOT change
 
 
     def run(self):
         self.root.protocol("WM_DELETE_WINDOW", self.shutdown)
         self.root.mainloop()
 
-    def send_with_size(self, sock, data):
-        """Send data with its size prepended."""
-        serialized_data = pickle.dumps(data)
-        data_length = len(serialized_data)
-        sock.sendall(f"{data_length:<10}".encode())  # Send length as a fixed-width 10-character string
-        sock.sendall(serialized_data)
-
-    def recv_all(self, sock):
-        """Receive all data from the socket."""
-        data_length = int(sock.recv(10).decode().strip())  # Read the size of the incoming data
-        data = b""
-        while len(data) < data_length:
-            packet = sock.recv(4096)
-            if not packet:
-                break
-            data += packet
-        return pickle.loads(data)
 
 if __name__ == "__main__":
     server = ServerGUI()
