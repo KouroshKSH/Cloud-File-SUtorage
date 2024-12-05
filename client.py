@@ -1,11 +1,50 @@
 """
-# Convention
-    1. '<s> ...' means success of an operation
-    2. '<e> ...' means error for an attempt
 
-# Good to know
-    Local Host is 127.0.0.1
+# CS 408 Project: Cloud File SUtorage
+
+## Group 8:
+1. Milad Bafarassat
+2. Kourosh Sharifi
+
+---
+
+# Client Application for File Management
+
+## Overview
+This script implements a client-side application for file upload, download, listing, and deletion through a socket connection to a server. The client has a graphical user interface (GUI) built using Tkinter, which provides buttons for connecting to the server, uploading files, downloading files, listing files, and deleting files. 
+
+## Functionality
+The application supports the following functionality:
+- **Connect to Server**: Enter the server's IP, port, and a username to establish a connection with the server.
+- **Upload File**: Allows the user to select a file from their system and upload it to the connected server.
+- **List Files**: Displays a list of files currently available on the server.
+- **Download File**: Allows the user to download a file from the server by specifying the filename and owner.
+- **Delete File**: Allows the user to delete a file on the server.
+
+The program uses multi-threading for handling incoming notifications from the server while the user interacts with the GUI. This ensures that the client remains responsive and can handle server messages without freezing.
+
+## How to Run:
+1. Make sure you have Python installed along with the required libraries: `socket`, `tkinter`, `pickle`, `os`, and `time`.
+2. Run the script.
+3. The GUI will appear. Enter the server's IP address, port, and your desired username to connect to the server.
+4. Once connected, you can upload, list, download, and delete files from the server.
+
+## Notes:
+- The server should be set up to handle connections and file requests.
+- The client will communicate with the server using the defined socket commands and protocols (serialized data with size information).
+- Error handling is implemented for scenarios such as network issues, file upload/download errors, and invalid server responses.
+- The interface provides helpful messages and updates during interactions.
+
+---
+
+# Convention:
+1. '<s> ...' means success of an operation
+2. '<e> ...' means error for an attempt
+
+# Good to know:
+Local Host is 127.0.0.1
 """
+
 
 import socket
 import threading
@@ -255,7 +294,7 @@ class ClientGUI:
                     # for better viewing experience,
                     # calculate the maximum file name length
                     # optional extra padding for uniformity
-                    const_padding = 5 # change this as needed
+                    const_padding = 8 # change this as needed
                     max_name_length = max(len(file['filename'].split('_', 1)[1]) for file in file_list) + const_padding
                     
                     # Format each row with aligned columns
